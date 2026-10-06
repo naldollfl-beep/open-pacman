@@ -52,11 +52,13 @@ const MAZE = MAZE_STR.map( ( row ) => row.split( '' ).map( parseTile ) );
 
 const TUNNEL_ROW = 14;
 const PACMAN_START = { x: 13, y: 23 };
+// Kinds renombrados a las personalidades clásicas del arcade (spec 01);
+// posiciones y orden de salida sin cambio.
 const GHOST_STARTS = [
-  { x: 13, y: 14, kind: 'hunter' },   // sale 1º
-  { x: 12, y: 14, kind: 'ambusher' }, // sale 2º
-  { x: 15, y: 14, kind: 'patrol' },   // sale 3º
-  { x: 14, y: 14, kind: 'random' },   // sale 4º
+  { x: 13, y: 14, kind: 'blinky' }, // sale 1º
+  { x: 12, y: 14, kind: 'pinky' },  // sale 2º
+  { x: 15, y: 14, kind: 'inky' },   // sale 3º
+  { x: 14, y: 14, kind: 'clyde' },  // sale 4º
 ];
 
 window.MAZE = MAZE;
