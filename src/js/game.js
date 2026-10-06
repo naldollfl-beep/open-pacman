@@ -25,6 +25,11 @@ const PATROL_CORNERS = [
   { x: 1, y: 1 },
   { x: 26, y: 29 },
 ];
+// Personalidades clásicas del arcade (spec 01).
+const PINKY_AIM_STRIDE = 4;           // pinky: celdas por delante de Pac-Man
+const INKY_AIM_STRIDE = 2;            // inky: celdas por delante para el vector de Inky
+const CLYDE_RETREAT_DIST = 8;         // clyde: distancia Manhattan que activa la retirada
+const CLYDE_CORNER = { x: 1, y: 29 }; // clyde: esquina inferior-izquierda
 const PEN_EXIT = { x: 13, y: 11 };
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
