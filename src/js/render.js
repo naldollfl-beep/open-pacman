@@ -176,11 +176,12 @@ function drawHUD( ctx, game, W ) {
   ctx.fillText( 'VIDAS ' + game.lives, W * TILE - 8, 4 );
 }
 
+// Colores clásicos; claves renombradas junto a los kinds (spec 01).
 const GHOST_COLORS_BY_KIND = {
-  hunter: '#ff0000',
-  ambusher: '#ffb8ff',
-  patrol: '#00ffff',
-  random: '#ffb851',
+  blinky: '#ff0000',
+  pinky: '#ffb8ff',
+  inky: '#00ffff',
+  clyde: '#ffb851',
 };
 
 function draw( ctx, game, frame ) {

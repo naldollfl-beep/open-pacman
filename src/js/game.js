@@ -20,11 +20,11 @@ const FRIGHT_FLASH_MS = 2000;
 const FRIGHTENED_SPEED = 0.05; // mitad de GHOST_SPEED (0.1)
 const EYES_SPEED = 0.15;       // 1.5x GHOST_SPEED
 const GHOST_EAT_SCORES = [ 200, 400, 800, 1600 ];
-const AMBUSHER_AIM_STRIDE = 4; // celdas por delante de Pac-Man
-const PATROL_CORNERS = [
-  { x: 1, y: 1 },
-  { x: 26, y: 29 },
-];
+// Personalidades clásicas del arcade (spec 01).
+const PINKY_AIM_STRIDE = 4;           // pinky: celdas por delante de Pac-Man
+const INKY_AIM_STRIDE = 2;            // inky: celdas por delante para el vector de Inky
+const CLYDE_RETREAT_DIST = 8;         // clyde: distancia Manhattan que activa la retirada
+const CLYDE_CORNER = { x: 1, y: 29 }; // clyde: esquina inferior-izquierda
 const PEN_EXIT = { x: 13, y: 11 };
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
@@ -172,41 +172,52 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
-  if ( g.kind === 'hunter' || g.kind === 'ambusher' || g.kind === 'patrol' ) {
-    let tx, ty;
-    if ( g.kind === 'hunter' ) {
-      tx = Math.round( p.x );
-      ty = Math.round( p.y );
-    } else if ( g.kind === 'ambusher' ) {
-      // ambusher: 4 celdas por delante de Pac-Man
-      const pd = DIRS[ p.dir ] || DIRS.left;
-      tx = Math.round( p.x ) + pd.x * AMBUSHER_AIM_STRIDE;
-      ty = Math.round( p.y ) + pd.y * AMBUSHER_AIM_STRIDE;
-    } else {
-      // patrol: alterna entre PATROL_CORNERS
-      if ( g.patrolTarget === undefined ) g.patrolTarget = 0;
-      tx = PATROL_CORNERS[ g.patrolTarget ].x;
-      ty = PATROL_CORNERS[ g.patrolTarget ].y;
-      if ( Math.abs( g.x - tx ) + Math.abs( g.y - ty ) <= 1 ) {
-        g.patrolTarget = ( g.patrolTarget + 1 ) % PATROL_CORNERS.length;
-      }
-    }
-    let best = choices[ 0 ];
-    let bestDist = Infinity;
-    for ( const dir of choices ) {
-      const d = DIRS[ dir ];
-      const nx = g.x + d.x;
-      const ny = g.y + d.y;
-      const dist = Math.abs( nx - tx ) + Math.abs( ny - ty );
-      if ( dist < bestDist ) {
-        bestDist = dist;
-        best = dir;
-      }
-    }
-    g.dir = best;
+  // Celda y dirección de Pac-Man (comunes a las 4 personalidades).
+  const px = Math.round( p.x );
+  const py = Math.round( p.y );
+  const pd = DIRS[ p.dir ] || DIRS.left;
+
+  // Blanco (celda tx,ty) según la personalidad clásica (spec 01).
+  let tx, ty;
+  if ( g.kind === 'blinky' ) {
+    // blinky: persecución directa; blanco = la celda de Pac-Man.
+    tx = px;
+    ty = py;
+  } else if ( g.kind === 'pinky' ) {
+    // pinky: PINKY_AIM_STRIDE celdas por delante de donde mira Pac-Man.
+    tx = px + pd.x * PINKY_AIM_STRIDE;
+    ty = py + pd.y * PINKY_AIM_STRIDE;
+  } else if ( g.kind === 'inky' ) {
+    // inky: 2*(Pac-Man + INKY_AIM_STRIDE*dir) - posición de blinky (vector doblado).
+    // || g por seguridad: sin blinky el blanco solo cambiaría, nunca rompe (riesgo spec 01).
+    const b = game.ghosts.find( ( gh ) => gh.kind === 'blinky' ) || g;
+    tx = 2 * ( px + pd.x * INKY_AIM_STRIDE ) - Math.round( b.x );
+    ty = 2 * ( py + pd.y * INKY_AIM_STRIDE ) - Math.round( b.y );
   } else {
-    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    // clyde: persigue a más de CLYDE_RETREAT_DIST (Manhattan); si no, se retira a su esquina.
+    if ( Math.abs( g.x - px ) + Math.abs( g.y - py ) > CLYDE_RETREAT_DIST ) {
+      tx = px;
+      ty = py;
+    } else {
+      tx = CLYDE_CORNER.x;
+      ty = CLYDE_CORNER.y;
+    }
   }
+
+  // En cada cruce: la dirección válida que más reduce la distancia Manhattan al blanco.
+  let best = choices[ 0 ];
+  let bestDist = Infinity;
+  for ( const dir of choices ) {
+    const d = DIRS[ dir ];
+    const nx = g.x + d.x;
+    const ny = g.y + d.y;
+    const dist = Math.abs( nx - tx ) + Math.abs( ny - ty );
+    if ( dist < bestDist ) {
+      bestDist = dist;
+      best = dir;
+    }
+  }
+  g.dir = best;
 }
 
 function exitPenStep( game, g ) {
