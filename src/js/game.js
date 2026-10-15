@@ -25,7 +25,7 @@ const PINKY_AIM_STRIDE = 4;           // pinky: celdas por delante de Pac-Man
 const INKY_AIM_STRIDE = 2;            // inky: celdas por delante para el vector de Inky
 const CLYDE_RETREAT_DIST = 8;         // clyde: distancia Manhattan que activa la retirada
 const CLYDE_CORNER = { x: 1, y: 29 }; // clyde: esquina inferior-izquierda
-const PEN_EXIT = { x: 13, y: 11 };
+const PEN_EXIT = { x: 13, y: 11 }; // celda donde aparecen los fantasmas al soltarse (spec 02)
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
@@ -64,8 +64,6 @@ function createGame() {
       releaseAt: releaseStart + ( i + 1 ) * GHOST_RELEASE_INTERVAL_MS,
       leftPen: false,
       mode: 'chase', // 'chase' | 'frightened' | 'eyes'
-      startX: g.x,
-      startY: g.y,
     } ) ),
   };
 }
@@ -220,18 +218,14 @@ function decideGhost( game, g ) {
   g.dir = best;
 }
 
-function exitPenStep( game, g ) {
-  if ( Math.round( g.x ) !== PEN_EXIT.x ) {
-    g.dir = g.x < PEN_EXIT.x ? 'right' : 'left';
-  } else {
-    g.dir = 'up';
-  }
-}
-
 function moveGhost( game, g ) {
   if ( !g.released ) {
     if ( performance.now() < g.releaseAt ) return;
+    // Teletransporte al soltarlo: aparece directamente fuera de la pen, en PEN_EXIT (spec 02).
     g.released = true;
+    g.x = PEN_EXIT.x;
+    g.y = PEN_EXIT.y;
+    g.leftPen = true;
   }
 
   const grid = game.grid;
@@ -241,16 +235,8 @@ function moveGhost( game, g ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
 
-    if ( g.released && !g.leftPen ) {
-      if ( g.x === PEN_EXIT.x && g.y === PEN_EXIT.y ) {
-        g.leftPen = true;
-        decideGhost( game, g );
-      } else {
-        exitPenStep( game, g );
-      }
-    } else {
-      decideGhost( game, g );
-    }
+    // Con el teletransporte de suelta ya no hay camino a pie: decideGhost directo (spec 02).
+    decideGhost( game, g );
     const effLeftPen = g.leftPen;
     if ( !canMove( grid, g.x, g.y, g.dir, 'ghost', effLeftPen ) ) return;
   }
@@ -263,15 +249,14 @@ function moveGhost( game, g ) {
   g.y += d.y * speed;
   wrapTunnel( g, width );
 
-  // Seguridad: si un fantasma sale del mapa (fuera de la fila del tunel), teleport a su start (spec 04).
+  // Seguridad: si un fantasma sale del mapa (fuera de la fila del tunel), teleport a PEN_EXIT (spec 02).
   if ( Math.round( g.y ) !== TUNNEL_ROW && ( g.x < 0 || g.x > 27 || g.y < 0 || g.y > 31 ) ) {
-    g.x = g.startX;
-    g.y = g.startY;
-    g.dir = 'up';
+    g.x = PEN_EXIT.x;
+    g.y = PEN_EXIT.y;
+    g.dir = 'left';
     g.mode = 'chase';
-    g.leftPen = false;
+    g.leftPen = true;
     g.released = true;
-    g.releaseAt = performance.now();
   }
 }
 
@@ -315,14 +300,13 @@ function update( game ) {
   for ( const g of game.ghosts ) {
     if ( !collides( game.pacman, g ) ) continue;
     if ( g.mode === 'frightened' ) {
-      // Teleport directo a la celda de inicio dentro de la pen y re-exitar (spec 04).
-      g.x = g.startX;
-      g.y = g.startY;
-      g.dir = 'up';
+      // Comido: re-aparece al instante fuera de la pen, en PEN_EXIT (spec 02).
+      g.x = PEN_EXIT.x;
+      g.y = PEN_EXIT.y;
+      g.dir = 'left';
       g.mode = 'chase';
-      g.leftPen = false;
+      g.leftPen = true;
       g.released = true;
-      g.releaseAt = performance.now();
       game.score += GHOST_EAT_SCORES[ Math.min( game.frightChain, 3 ) ];
       game.frightChain++;
     } else if ( g.mode === 'eyes' ) {
